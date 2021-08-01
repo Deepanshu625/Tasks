@@ -13,11 +13,15 @@ from django.views.decorators import csrf
 class TodoAllView(View):
 
     def get(self, request):
-        print("User:", request.user)
-        username = request.GET.get("username", "")
+        username = request.GET.get("user", "")
         user = User.objects.filter(username=username).first()
+        if not user:
+            return HttpResponse('Invalid user')
 
-        todo_object = TODO.objects.filter(user=user)
+        if user.is_superuser:
+            todo_object = TODO.objects.all()
+        else:    
+            todo_object = TODO.objects.filter(user=user)
         serialized_data = TodoSerializer(todo_object, many=True)
         json_renderer = JSONRenderer().render(serialized_data.data)
         return HttpResponse(json_renderer)
@@ -26,19 +30,30 @@ class TodoAllView(View):
 class TodoView(View):
 
     def get(self, request):
-        username = request.GET.get("username", "")
+        username = request.GET.get("user", "")
         user = User.objects.filter(username=username).first()
+        if not user:
+            return HttpResponse('Invalid user')
 
         pk = request.GET.get("id")
-        todo_object = TODO.objects.get(id=pk)
+        if not pk:
+            return HttpResponse('ID required')
+
+        if user.is_superuser:
+            todo_object = TODO.objects.filter(id=pk)
+        else:
+            todo_object = TODO.objects.filter(user=user, id=pk)
+
         serialized_data = TodoSerializer(todo_object)
         json_renderer = JSONRenderer().render(serialized_data.data)
         return HttpResponse(json_renderer)
 
 
     def post(self, request):
-        username = request.GET.get("username", "")
+        username = request.GET.get("user", "")
         user = User.objects.filter(username=username).first()
+        if not user:
+            return HttpResponse('Invalid user')
 
         json_data = request.body
         stream = io.BytesIO(json_data)
@@ -67,8 +82,10 @@ class TodoView(View):
         return HttpResponse(json_data, content_type='application/json')
 
     def put(self, request):
-        username = request.GET.get("username", "")
+        username = request.GET.get("user", "")
         user = User.objects.filter(username=username).first()
+        if not user:
+            return HttpResponse('Invalid user')
 
         json_data = request.body
         stream = io.BytesIO(json_data)
@@ -91,8 +108,10 @@ class TodoView(View):
         return HttpResponse('updated successfully')
 
     def delete(self, request):
-        username = request.GET.get("username", "")
+        username = request.GET.get("user", "")
         user = User.objects.filter(username=username).first()
+        if not user:
+            return HttpResponse('Invalid user')
 
         json_data = request.body
         stream = io.BytesIO(json_data)
